@@ -4,33 +4,23 @@ import cloudinary from "../config/cloudinary.js";
 
 const makeSafePublicId = (originalName) => {
   const nameWithoutExt = originalName.replace(/\.[^/.]+$/, "");
-  const safe = nameWithoutExt.replace(/[^a-zA-Z0-9-_]/g, "_");
-  return safe.replace(/_+/g, "_").substring(0, 240);
+  return nameWithoutExt
+    .replace(/[^a-zA-Z0-9-_]/g, "_")
+    .replace(/_+/g, "_")
+    .substring(0, 240);
 };
 
-const imageStorage = new CloudinaryStorage({
+const adaptiveStorage = new CloudinaryStorage({
   cloudinary,
   params: (req, file) => {
+    const isImage = (file.mimetype || "").startsWith("image/");
     const safeId = `${Date.now()}-${makeSafePublicId(file.originalname)}`;
     return {
       folder: "collegeCommunity",
-      resource_type: "image",
+      resource_type: isImage ? "image" : "raw",
       public_id: safeId,
     };
   },
 });
 
-const fileStorage = new CloudinaryStorage({
-  cloudinary,
-  params: (req, file) => {
-    const safeId = `${Date.now()}-${makeSafePublicId(file.originalname)}`;
-    return {
-      folder: "collegeCommunity",
-      resource_type: "auto",
-      public_id: safeId,
-    };
-  },
-});
-
-export const uploadImage = multer({ storage: imageStorage });
-export const uploadFile = multer({ storage: fileStorage });
+export const upload = multer({ storage: adaptiveStorage });
