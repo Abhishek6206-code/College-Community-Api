@@ -8,6 +8,7 @@ import clubRouter from "./Routes/club.js";
 import eventRouter from "./Routes/event.js";
 import resourceRouter from "./Routes/resource.js";
 import groupRouter from "./Routes/group.js";
+import uploadROuter from "./Routes/updload.js"
 import { Message } from "./Models/Message.js";
 import dotenv from "dotenv";
 
@@ -36,6 +37,7 @@ app.use("/api/clubs", clubRouter);
 app.use("/api/events", eventRouter);
 app.use("/api/resources", resourceRouter);
 app.use("/api/groups", groupRouter);
+app.use("/api/upload",uploadROuter);
 
 const server = http.createServer(app);
 

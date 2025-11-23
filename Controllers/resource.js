@@ -2,8 +2,22 @@ import { Resource } from "../Models/Resource.js";
 
 export const uploadResource = async (req, res) => {
   try {
-    const { title, course, year, subject, type } = req.body;
-    if (!req.file || !req.file.path) return res.json({ message: "file required" });
+    console.log("uploadResource called - req.body:", req.body, "req.file:", req.file && {
+      originalname: req.file.originalname,
+      path: req.file.path,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+
+    const { title, course, year, subject, type } = req.body || {};
+
+    if (!title || !course || !year || !subject || !type) {
+      return res.status(400).json({ message: "Missing required fields: title, course, year, subject, type" });
+    }
+
+    if (!req.file || !req.file.path) {
+      return res.status(400).json({ message: "File is required" });
+    }
 
     const resource = new Resource({
       title,
@@ -12,13 +26,14 @@ export const uploadResource = async (req, res) => {
       subject,
       type,
       fileUrl: req.file.path,
-      uploadedBy: req.user._id
+      uploadedBy: req.user?._id || req.user?.id
     });
 
     await resource.save();
-    res.json({ message: "resource uploaded successfully", resource });
+    return res.status(201).json({ message: "resource uploaded successfully", resource });
   } catch (err) {
-    res.json({ error: err.message });
+    console.error("uploadResource error:", err && (err.stack || err));
+    return res.status(500).json({ error: err.message || "Server error during upload" });
   }
 };
 
@@ -27,36 +42,38 @@ export const getResources = async (req, res) => {
     const { course, year, subject, type } = req.query;
     const filter = {};
 
-    if (course) 
-      filter.course = course;
+    if (course) filter.course = course;
     if (year) filter.year = year;
     if (type) filter.type = type;
-    if (subject) 
-      filter.subject = { $regex: subject, $options: "i" }; // partial match
+    if (subject) filter.subject = { $regex: subject, $options: "i" };
 
     const resources = await Resource.find(filter)
       .sort({ uploadedAt: -1 })
       .populate("uploadedBy", "name email");
 
-    res.json(resources);
+    return res.json(resources);
   } catch (err) {
-    res.json({ error: err.message });
+    console.error("getResources error:", err && (err.stack || err));
+    return res.status(500).json({ error: err.message || "Server error" });
   }
 };
-
 
 export const deleteResource = async (req, res) => {
   try {
     const resource = await Resource.findById(req.params.id);
-    if (!resource) return res.json({ message: "resource not found" });
+    if (!resource) return res.status(404).json({ message: "resource not found" });
 
-    if (resource.uploadedBy.toString() !== req.user._id.toString()) {
-      return res.json({ message: "not authorized to delete" });
+    const userId = req.user?._id?.toString() || req.user?.id?.toString();
+    if (!userId) return res.status(401).json({ message: "Login required" });
+
+    if (resource.uploadedBy.toString() !== userId) {
+      return res.status(403).json({ message: "not authorized to delete" });
     }
 
     await Resource.findByIdAndDelete(req.params.id);
-    res.json({ message: "resource deleted successfully" });
+    return res.json({ message: "resource deleted successfully" });
   } catch (err) {
-    res.json({ error: err.message });
+    console.error("deleteResource error:", err && (err.stack || err));
+    return res.status(500).json({ error: err.message || "Server error" });
   }
 };
